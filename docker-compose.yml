@@ -1,0 +1,50 @@
+version: "3.8"
+
+services:
+  api-gateway:
+    build: ./api-gateway
+    ports:
+      - "3000:3000"
+    depends_on:
+      - user-service
+      - blog-service
+      - notification-service
+
+  user-service:
+    build: ./user-service
+    ports:
+      - "3001:3001"
+    environment:
+      - MONGO_URL=mongodb://mongo:27017/blog_users
+      - JWT_SECRET=mysecretkey123
+    depends_on:
+      - mongo
+
+  blog-service:
+    build: ./blog-service
+    ports:
+      - "3002:3002"
+    environment:
+      - MONGO_URL=mongodb://mongo:27017/blog_posts
+    depends_on:
+      - mongo
+
+  notification-service:
+    build: ./notification-service
+    ports:
+      - "3003:3003"
+
+  mongo:
+    image: mongo:6
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:5173"
+
+volumes:
+  mongodb_data:
