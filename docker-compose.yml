@@ -1,50 +1,79 @@
-version: "3.8"
+version: '3.8'
 
 services:
-  api-gateway:
-    build: ./api-gateway
+  mongodb:
+    image: mongo:6
+    container_name: blog-mongodb
+    restart: unless-stopped
     ports:
-      - "3000:3000"
-    depends_on:
-      - user-service
-      - blog-service
-      - notification-service
+      - '27017:27017'
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - blog-network
 
   user-service:
     build: ./user-service
+    container_name: blog-user-service
+    restart: unless-stopped
     ports:
-      - "3001:3001"
+      - '3001:3001'
     environment:
-      - MONGO_URL=mongodb://mongo:27017/blog_users
-      - JWT_SECRET=mysecretkey123
+      - PORT=3001
+      - MONGODB_URI=mongodb://mongodb:27017/blog-users
+      - JWT_SECRET=your-super-secret-jwt-key-change-in-production
     depends_on:
-      - mongo
+      - mongodb
+    networks:
+      - blog-network
 
   blog-service:
     build: ./blog-service
+    container_name: blog-post-service
+    restart: unless-stopped
     ports:
-      - "3002:3002"
+      - '3002:3002'
     environment:
-      - MONGO_URL=mongodb://mongo:27017/blog_posts
+      - PORT=3002
+      - MONGODB_URI=mongodb://mongodb:27017/blog-posts
+      - JWT_SECRET=your-super-secret-jwt-key-change-in-production
+      - USER_SERVICE_URL=http://user-service:3001
     depends_on:
-      - mongo
+      - mongodb
+      - user-service
+    networks:
+      - blog-network
 
-  notification-service:
-    build: ./notification-service
+  api-gateway:
+    build: ./api-gateway
+    container_name: blog-api-gateway
+    restart: unless-stopped
     ports:
-      - "3003:3003"
-
-  mongo:
-    image: mongo:6
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongodb_data:/data/db
+      - '3000:3000'
+    environment:
+      - PORT=3000
+      - USER_SERVICE_URL=http://user-service:3001
+      - BLOG_SERVICE_URL=http://blog-service:3002
+    depends_on:
+      - user-service
+      - blog-service
+    networks:
+      - blog-network
 
   frontend:
     build: ./frontend
+    container_name: blog-frontend
+    restart: unless-stopped
     ports:
-      - "5173:5173"
+      - '5173:80'
+    depends_on:
+      - api-gateway
+    networks:
+      - blog-network
 
 volumes:
   mongodb_data:
+
+networks:
+  blog-network:
+    driver: bridge
